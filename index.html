@@ -9,11 +9,20 @@
 <body>
   <div class="app">
     <h1>🛒 Lista de Compras</h1>
-    <div class="input-container">
-      <input type="text" id="itemInput" placeholder="Digite um item..." />
-      <button onclick="adicionarItem()">Adicionar</button>
+
+    <div id="login" class="login-container">
+      <input type="text" id="usernameInput" placeholder="Digite seu nome" />
+      <button onclick="entrar()">Entrar</button>
     </div>
-    <ul id="lista"></ul>
+
+    <div id="listaContainer" class="hidden">
+      <p><strong>Usuário:</strong> <span id="usernameDisplay"></span></p>
+      <div class="input-container">
+        <input type="text" id="itemInput" placeholder="Digite um item..." />
+        <button onclick="adicionarItem()">Adicionar</button>
+      </div>
+      <ul id="lista"></ul>
+    </div>
   </div>
 
   <script src="script.js"></script>
