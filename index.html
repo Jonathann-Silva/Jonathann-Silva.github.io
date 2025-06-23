@@ -11,8 +11,10 @@
     <h1>🛒 Lista de Compras</h1>
 
     <div id="login" class="login-container">
-      <input type="text" id="usernameInput" placeholder="Digite seu nome" />
+      <input type="text" id="usernameInput" placeholder="Usuário" />
+      <input type="password" id="passwordInput" placeholder="Senha" />
       <button onclick="entrar()">Entrar</button>
+      <p id="erroLogin" class="erro hidden">Usuário ou senha inválidos!</p>
     </div>
 
     <div id="listaContainer" class="hidden">
