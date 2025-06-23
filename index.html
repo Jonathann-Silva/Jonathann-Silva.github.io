@@ -1,13 +1,21 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meu primeiro site</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lista de Compras</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <h1>Esse é uma pagina de teste!</h1>
-    <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Officiis iste praesentium beatae iure. Sed earum incidunt blanditiis fuga ullam eum inventore saepe asperiores voluptas omnis commodi, odio debitis rem. Quam.</p>
+  <div class="app">
+    <h1>🛒 Lista de Compras</h1>
+    <div class="input-container">
+      <input type="text" id="itemInput" placeholder="Digite um item..." />
+      <button onclick="adicionarItem()">Adicionar</button>
+    </div>
+    <ul id="lista"></ul>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
