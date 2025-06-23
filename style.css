@@ -82,3 +82,13 @@ li button:hover {
 .hidden {
   display: none;
 }
+
+.erro {
+  color: #ff5252;
+  font-size: 14px;
+  margin-top: -10px;
+}
+
+.hidden {
+  display: none;
+}
