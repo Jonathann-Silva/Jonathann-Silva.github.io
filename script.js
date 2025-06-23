@@ -1,15 +1,21 @@
 let usuario = "";
+const USUARIO_CORRETO = "Jonathan";
+const SENHA_CORRETA = "2310";
 
 function entrar() {
-  const input = document.getElementById("usernameInput");
-  const nome = input.value.trim();
-  if (nome === "") return;
+  const userInput = document.getElementById("usernameInput").value.trim();
+  const senhaInput = document.getElementById("passwordInput").value.trim();
+  const erroLogin = document.getElementById("erroLogin");
 
-  usuario = nome;
-  document.getElementById("login").classList.add("hidden");
-  document.getElementById("listaContainer").classList.remove("hidden");
-  document.getElementById("usernameDisplay").textContent = usuario;
-  carregarLista();
+  if (userInput === USUARIO_CORRETO && senhaInput === SENHA_CORRETA) {
+    usuario = userInput;
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("listaContainer").classList.remove("hidden");
+    document.getElementById("usernameDisplay").textContent = usuario;
+    carregarLista();
+  } else {
+    erroLogin.classList.remove("hidden");
+  }
 }
 
 function carregarLista() {
