@@ -1,32 +1,260 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Lista de Compras</title>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Aplicativo de Entregas Flash Express</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 400px; /* Reduzido para uma tela de login */
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+        }
+        .btn-primary {
+            background-color: #3b82f6;
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+        }
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+        .message-box {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            display: none; /* Hidden by default */
+        }
+        .message-box.error {
+            background-color: #f44336;
+        }
+        .message-box.info {
+            background-color: #2196F3;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            display: none;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
-  <div class="app">
-    <h1>🛒 Lista de Compras</h1>
+    <div class="container">
+        <div id="messageBox" class="message-box"></div>
 
-    <div id="login" class="login-container">
-      <input type="text" id="usernameInput" placeholder="Usuário" />
-      <input type="password" id="passwordInput" placeholder="Senha" />
-      <button onclick="entrar()">Entrar</button>
-      <p id="erroLogin" class="erro hidden">Usuário ou senha inválidos!</p>
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="spinner"></div>
+        </div>
+
+        <section id="loginSection" class="w-full max-w-md mx-auto p-6 rounded-lg shadow-md bg-white">
+            <h2 class="text-2xl font-bold text-center mb-6 text-gray-800">Login no Aplicativo de Entregas</h2>
+            <form id="loginForm" class="flex flex-col gap-4">
+                <div>
+                    <label for="loginEmail" class="block text-sm font-medium text-gray-700 mb-1">Email:</label>
+                    <input type="email" id="loginEmail" class="form-input" required placeholder="seu@email.com">
+                </div>
+                <div>
+                    <label for="loginPassword" class="block text-sm font-medium text-gray-700 mb-1">Senha:</label>
+                    <input type="password" id="loginPassword" class="form-input" required placeholder="sua senha">
+                </div>
+                <button type="submit" class="btn-primary">Entrar</button>
+            </form>
+            <p class="text-center text-sm text-gray-600 mt-4">
+                Não tem uma conta? Por favor, entre em contato com o administrador.
+            </p>
+        </section>
     </div>
 
-    <div id="listaContainer" class="hidden">
-      <p><strong>Usuário:</strong> <span id="usernameDisplay"></span></p>
-      <div class="input-container">
-        <input type="text" id="itemInput" placeholder="Digite um item..." />
-        <button onclick="adicionarItem()">Adicionar</button>
-      </div>
-      <ul id="lista"></ul>
-    </div>
-  </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-  <script src="script.js"></script>
+        // SUAS CREDENCIAIS DO FIREBASE (AS MESMAS EM TODOS OS ARQUIVOS)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBt1FCYCv0Ep9TMk_XfXcGXwHW3JNX7XJA", // SEU VALOR REAL
+            authDomain: "flash-express-fbf46.firebaseapp.com", // SEU VALOR REAL
+            projectId: "flash-express-fbf46", // SEU VALOR REAL
+            storageBucket: "flash-express-fbf46.firebasestorage.app", // SEU VALOR REAL
+            messagingSenderId: "959043432256", // SEU VALOR REAL
+            appId: "1:959043432256:web:478182be28c48ecc2cd4a5" // SEU VALOR REAL
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const usersCollectionRef = collection(db, "users");
+
+        // Elementos DOM
+        const loginForm = document.getElementById('loginForm');
+        const loginEmailInput = document.getElementById('loginEmail');
+        const loginPasswordInput = document.getElementById('loginPassword');
+        const messageBox = document.getElementById('messageBox');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        // Funções Utilitárias
+        function showMessageBox(message, type = 'info') {
+            messageBox.textContent = message;
+            messageBox.className = `message-box ${type}`;
+            messageBox.style.display = 'block';
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 3000);
+        }
+
+        function showLoading() {
+            loadingOverlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            loadingOverlay.style.display = 'none';
+        }
+
+        // Listener para verificar o estado de autenticação ao carregar a página de login
+        onAuthStateChanged(auth, async (user) => {
+            showLoading();
+            if (user) {
+                // Se já há um usuário logado, verifica o papel dele
+                try {
+                    const userDocSnap = await getDoc(doc(usersCollectionRef, user.uid));
+                    if (userDocSnap.exists()) {
+                        const userRole = userDocSnap.data().role;
+                        if (userRole === 'admin') {
+                            window.location.href = 'adminDashboard.html'; // Redireciona para o dashboard admin
+                        } else if (userRole === 'client') {
+                            window.location.href = 'clientDashboard.html'; // Redireciona para o dashboard do cliente
+                        } else if (userRole === 'employee') {
+                            window.location.href = 'funcionarioDashboard.html'; // Redireciona para o dashboard do funcionário
+                        } else {
+                            // Se for outro papel ou papel não reconhecido
+                            showMessageBox('Sessão encontrada, mas sem permissão para este dashboard. Por favor, faça login com uma conta válida.', 'info');
+                            auth.signOut(); // Desloga o usuário atual
+                        }
+                    } else {
+                        // Usuário logado no Auth, mas sem perfil no Firestore (caso raro), desloga
+                        showMessageBox('Perfil de usuário não encontrado. Por favor, tente novamente.', 'error');
+                        auth.signOut();
+                    }
+                } catch (error) {
+                    console.error('Erro ao verificar sessão existente:', error);
+                    showMessageBox(`Erro ao verificar sessão: ${error.message}`, 'error');
+                    auth.signOut();
+                }
+            }
+            hideLoading(); // Esconde o loading após a verificação
+        });
+
+        // Lógica de Login
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showLoading();
+            const email = loginEmailInput.value;
+            const password = loginPasswordInput.value;
+
+            try {
+                // Define a persistência da sessão para durar apenas enquanto a aba/janela do navegador estiver aberta
+                await setPersistence(auth, browserSessionPersistence); 
+
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // Após login bem-sucedido, verifica o papel
+                const userDocSnap = await getDoc(doc(usersCollectionRef, user.uid));
+                if (userDocSnap.exists()) {
+                    const userRole = userDocSnap.data().role;
+                    if (userRole === 'admin') {
+                        showMessageBox('Login realizado com sucesso!', 'success');
+                        window.location.href = 'adminDashboard.html'; // Redireciona para o dashboard admin
+                    } else if (userRole === 'client') {
+                        showMessageBox('Login realizado com sucesso!', 'success');
+                        window.location.href = 'clientDashboard.html'; // Redireciona para o dashboard do cliente
+                    } else if (userRole === 'employee') {
+                        showMessageBox('Login realizado com sucesso!', 'success');
+                        window.location.href = 'funcionarioDashboard.html'; // Redireciona para o dashboard do funcionário
+                    } else {
+                        // Outros papéis não reconhecidos
+                        showMessageBox('Papel de usuário desconhecido. Por favor, contate o administrador.', 'error');
+                        await auth.signOut();
+                    }
+
+                } else {
+                    showMessageBox('Perfil de usuário não encontrado. Contate o administrador.', 'error');
+                    await auth.signOut();
+                }
+
+            } catch (error) {
+                console.error('Erro ao fazer login:', error);
+                let errorMessage = "Erro ao fazer login. Verifique seu email e senha.";
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    errorMessage = "Email ou senha incorretos.";
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = "Formato de email inválido.";
+                }
+                showMessageBox(errorMessage, 'error');
+            } finally {
+                hideLoading();
+            }
+        });
+    </script>
 </body>
 </html>
