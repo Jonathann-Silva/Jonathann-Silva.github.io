@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard do Administrador - Flash Express</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .container-main { max-width: 1200px; }
+        .tab-button.active { border-bottom: 3px solid #3B82F6; color: #3B82F6; font-weight: 600; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .form-input, .form-textarea { width: 100%; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s; }
+        .form-input:focus, .form-textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); }
+        .form-textarea { min-height: 80px; }
+        .btn { padding: 12px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; text-align: center; }
+        .btn-primary { background-color: #3b82f6; color: #ffffff; } .btn-primary:hover { background-color: #2563eb; }
+        .btn-success { background-color: #10b981; color: #ffffff; } .btn-success:hover { background-color: #059669; }
+        .btn-danger { background-color: #ef4444; color: #ffffff; } .btn-danger:hover { background-color: #dc2626; }
+        .btn-secondary { background-color: #6b7280; color: #ffffff; } .btn-secondary:hover { background-color: #4b5563; }
+        .message-box { position: fixed; top: 20px; right: 20px; color: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); z-index: 1000; display: none; }
+        .message-box.error { background-color: #f44336; } .message-box.success { background-color: #4CAF50; } .message-box.info { background-color: #2196F3; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.8); display: flex; justify-content: center; align-items: center; z-index: 10000; display: none; }
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); border-left-color: #3b82f6; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+
+    <header class="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center w-full">
+        <h1 class="text-2xl font-bold">Dashboard do Administrador</h1>
+        <button id="logoutButton" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Sair</button>
+    </header>
+
+    <main class="flex-grow container-main mx-auto p-6">
+        <div id="messageBox" class="message-box"></div>
+        <div id="loadingOverlay" class="loading-overlay"><div class="spinner"></div></div>
+
+        <div class="bg-white rounded-lg shadow-md mb-6 p-4 flex flex-wrap justify-around border-b border-gray-200">
+            <button data-tab="entregas" class="tab-button py-2 px-4 text-gray-700 hover:text-blue-500 transition-colors duration-200 active">Status Entregas</button>
+            <button data-tab="solicitarEntrega" class="tab-button py-2 px-4 text-gray-700 hover:text-blue-500 transition-colors duration-200">Solicitar Nova Entrega</button>
+            <button data-tab="cadastroUsuarios" class="tab-button py-2 px-4 text-gray-700 hover:text-blue-500 transition-colors duration-200">Gerenciar Usuários</button>
+            <button data-tab="entregasHoje" class="tab-button py-2 px-4 text-gray-700 hover:text-blue-500 transition-colors duration-200">Entregas de Hoje</button>
+            <button data-tab="historico" class="tab-button py-2 px-4 text-gray-700 hover:text-blue-500 transition-colors duration-200">Histórico e Relatórios</button>
+        </div>
+
+        <section id="contentEntregas" class="tab-content active bg-white p-6 rounded-lg shadow-md space-y-8">
+            <h2 class="text-xl font-semibold mb-4">Acompanhamento de Status das Entregas</h2>
+            
+            <div>
+                <h3 class="text-lg font-medium mb-3 text-red-600">Novas Solicitações (Aguardando Aprovação)</h3>
+                <div id="pendingClientApprovalList" class="space-y-4"><p class="text-gray-500">Nenhum novo pedido de cliente.</p></div>
+            </div>
+
+            <div>
+                <h3 class="text-lg font-medium mb-3 text-yellow-600">Aguardando Aceite do Funcionário</h3>
+                <div id="pendingEmployeeApprovalList" class="space-y-4"><p class="text-gray-500">Nenhum pedido aguardando aceite.</p></div>
+            </div>
+            <div>
+                <h3 class="text-lg font-medium mb-3 text-blue-600">Aguardando Coleta</h3>
+                <div id="awaitingCollectionList" class="space-y-4"><p class="text-gray-500">Nenhum pedido aguardando coleta.</p></div>
+            </div>
+            <div>
+                <h3 class="text-lg font-medium mb-3 text-purple-600">Em Rota de Entrega</h3>
+                <div id="inRouteList" class="space-y-4"><p class="text-gray-500">Nenhum pedido em rota.</p></div>
+            </div>
+             <div>
+                <h3 class="text-lg font-medium mb-3 text-green-600">Pedidos Concluídos (Recentes)</h3>
+                <div id="completedList" class="space-y-4"><p class="text-gray-500">Nenhum pedido concluído recentemente.</p></div>
+            </div>
+        </section>
+
+        <section id="contentSolicitarEntrega" class="tab-content bg-white p-6 rounded-lg shadow-md">
+             <h2 class="text-xl font-semibold mb-6">Solicitar Nova Entrega</h2>
+            <form id="newDeliveryForm" class="space-y-6">
+                <div>
+                    <h3 class="text-lg font-medium mb-3 border-b pb-2">Informações do Cliente e Funcionário</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div>
+                            <label for="deliveryClientName" class="block text-sm font-medium text-gray-700">Nome do Cliente:</label>
+                            <input type="text" id="deliveryClientName" class="form-input" placeholder="Digite o nome do cliente (mesmo não cadastrado)" required>
+                        </div>
+                        <div>
+                            <label for="deliveryEmployee" class="block text-sm font-medium text-gray-700">Atribuir ao Funcionário:</label>
+                            <select id="deliveryEmployee" class="form-input" required></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-medium mb-3 border-b pb-2">Dados de Coleta</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="collectStoreName" class="block text-sm font-medium text-gray-700">Nome da Loja/Local:</label>
+                            <input type="text" id="collectStoreName" class="form-input" placeholder="Ex: Loja do Zé" required>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="md:col-span-2">
+                                <label for="collectStreet" class="block text-sm font-medium text-gray-700">Rua:</label>
+                                <input type="text" id="collectStreet" class="form-input" placeholder="Rua das Flores" required>
+                            </div>
+                            <div>
+                                <label for="collectNumber" class="block text-sm font-medium text-gray-700">Número:</label>
+                                <input type="text" id="collectNumber" class="form-input" placeholder="123" required>
+                            </div>
+                        </div>
+                         <div>
+                            <label for="collectNeighborhood" class="block text-sm font-medium text-gray-700">Bairro:</label>
+                            <input type="text" id="collectNeighborhood" class="form-input" placeholder="Centro" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-medium mb-3 border-b pb-2">Dados de Entrega</h3>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                             <div class="md:col-span-2">
+                                <label for="deliveryStreet" class="block text-sm font-medium text-gray-700">Rua:</label>
+                                <input type="text" id="deliveryStreet" class="form-input" placeholder="Avenida Principal" required>
+                            </div>
+                            <div>
+                                <label for="deliveryNumber" class="block text-sm font-medium text-gray-700">Nº da Casa:</label>
+                                <input type="text" id="deliveryNumber" class="form-input" placeholder="456" required>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div>
+                                <label for="deliveryNeighborhood" class="block text-sm font-medium text-gray-700">Bairro:</label>
+                                <input type="text" id="deliveryNeighborhood" class="form-input" placeholder="Vila Nova" required>
+                            </div>
+                             <div>
+                                <label for="deliveryCity" class="block text-sm font-medium text-gray-700">Cidade (Opcional):</label>
+                                <input type="text" id="deliveryCity" class="form-input" placeholder="Sua Cidade">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="deliveryComplement" class="block text-sm font-medium text-gray-700">Complemento (Opcional):</label>
+                            <input type="text" id="deliveryComplement" class="form-input" placeholder="Ex: Apto 101, Bloco B">
+                        </div>
+                        <div class="pt-4">
+                             <label for="deliveryObservations" class="block text-sm font-medium text-gray-700">Observação (Opcional):</label>
+                             <textarea id="deliveryObservations" class="form-textarea" rows="3" placeholder="Ex: Deixar na portaria, produto frágil, etc."></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-4">
+                     <label for="deliveryValue" class="block text-sm font-medium text-gray-700">Valor da Entrega (R$):</label>
+                     <input type="number" id="deliveryValue" class="form-input" placeholder="25.50" step="0.01" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full mt-6">Criar e Enviar Pedido para Funcionário</button>
+            </form>
+        </section>
+
+        <section id="contentCadastroUsuarios" class="tab-content bg-white p-6 rounded-lg shadow-md">
+             <h2 class="text-xl font-semibold mb-4">Gerenciar Usuários</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-lg font-medium mb-3">Adicionar Novo Usuário</h3>
+                    <form id="addUserForm" class="space-y-4">
+                        <div>
+                            <label for="userRole" class="block text-sm font-medium text-gray-700">Função:</label>
+                            <select id="userRole" class="form-input" required>
+                                <option value="">Selecione a Função</option>
+                                <option value="client">Cliente</option>
+                                <option value="employee">Funcionário</option>
+                                <option value="admin">Administrador</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="userName" class="block text-sm font-medium text-gray-700">Nome:</label>
+                            <input type="text" id="userName" class="form-input" placeholder="Nome Completo" required>
+                        </div>
+                        <div>
+                            <label for="userEmail" class="block text-sm font-medium text-gray-700">Email:</label>
+                            <input type="email" id="userEmail" class="form-input" placeholder="email@exemplo.com" required>
+                        </div>
+                        <div>
+                            <label for="userPassword" class="block text-sm font-medium text-gray-700">Senha:</label>
+                            <input type="password" id="userPassword" class="form-input" placeholder="Pelo menos 6 caracteres" required>
+                        </div>
+                        
+                        <div id="clientAddressFields" class="hidden space-y-4">
+                             <h4 class="text-md font-medium text-gray-800 pt-2 border-t">Endereço do Cliente</h4>
+                             <div>
+                                 <label for="clientStreet" class="block text-sm font-medium text-gray-700">Rua:</label>
+                                 <input type="text" id="clientStreet" class="form-input" placeholder="Rua do Cliente">
+                             </div>
+                             <div class="grid grid-cols-3 gap-2">
+                                 <div class="col-span-2">
+                                     <label for="clientNeighborhood" class="block text-sm font-medium text-gray-700">Bairro:</label>
+                                     <input type="text" id="clientNeighborhood" class="form-input" placeholder="Bairro do Cliente">
+                                 </div>
+                                 <div>
+                                     <label for="clientNumberField" class="block text-sm font-medium text-gray-700">Número:</label>
+                                     <input type="text" id="clientNumberField" class="form-input" placeholder="Nº">
+                                 </div>
+                             </div>
+                             <div>
+                                 <label for="clientCity" class="block text-sm font-medium text-gray-700">Cidade:</label>
+                                 <input type="text" id="clientCity" class="form-input" placeholder="Cidade do Cliente">
+                             </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-full">Adicionar Usuário</button>
+                    </form>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium mb-3">Usuários Cadastrados</h3>
+                    <div id="usersList" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                        <p class="text-gray-500">Carregando usuários...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section id="contentEntregasHoje" class="tab-content bg-white p-6 rounded-lg shadow-md">
+             <h2 class="text-xl font-semibold mb-4">Entregas Realizadas Hoje</h2>
+            <div id="completedTodayList" class="space-y-4">
+                <p class="text-gray-500">Carregando entregas...</p>
+            </div>
+        </section>
+        <section id="contentHistorico" class="tab-content bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold mb-4">Histórico de Entregas</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 border rounded-lg bg-gray-50">
+                <div>
+                    <label for="startDate" class="block text-sm font-medium text-gray-700">Data de Início:</label>
+                    <input type="date" id="startDate" class="form-input">
+                </div>
+                 <div>
+                    <label for="endDate" class="block text-sm font-medium text-gray-700">Data Final:</label>
+                    <input type="date" id="endDate" class="form-input">
+                </div>
+                <div class="md:col-span-2">
+                    <label for="clientSearch" class="block text-sm font-medium text-gray-700">Filtrar por Cliente:</label>
+                    <select id="clientSearch" class="form-input">
+                        <option value="">Selecione um cliente...</option>
+                    </select>
+                </div>
+                 <div class="md:col-span-4 text-right">
+                    <button id="filterHistoryButton" class="btn btn-primary">Filtrar Histórico</button>
+                </div>
+            </div>
+            <div id="historicoDeliveriesList" class="space-y-4 mb-6 max-h-[500px] overflow-y-auto pr-2">
+                <p class="text-gray-500">Use os filtros acima para buscar o histórico de entregas.</p>
+            </div>
+            <div class="text-right mb-6 border-t pt-4">
+                <span class="text-lg font-semibold">Valor Total das Entregas Filtradas: </span>
+                <span id="totalDeliveryValue" class="text-xl font-bold text-green-600">R$ 0,00</span>
+            </div>
+            <div class="flex space-x-4 justify-end">
+                <button id="exportPdfButton" class="btn btn-success flex-1 md:flex-none">Exportar para PDF</button>
+                <button id="exportWhatsappButton" class="btn btn-primary flex-1 md:flex-none">Exportar via WhatsApp</button>
+            </div>
+        </section>
+
+        <div id="assignEmployeeModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-white p-6 rounded-lg shadow-lg w-96 max-w-full">
+                <h3 class="text-lg font-semibold mb-4">Aprovar e Destinar Entrega</h3>
+                <p class="mb-4">Defina o valor e selecione o funcionário para esta entrega:</p>
+                <div class="space-y-4">
+                    <div>
+                        <label for="deliveryValueInput" class="block text-sm font-medium text-gray-700">Valor da Entrega (R$):</label>
+                        <input type="number" id="deliveryValueInput" class="form-input" placeholder="Ex: 25.50" step="0.01" required>
+                    </div>
+                    <div>
+                         <label for="employeeSelect" class="block text-sm font-medium text-gray-700">Funcionário:</label>
+                         <select id="employeeSelect" class="form-input" required></select>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-4 mt-6">
+                    <button id="confirmAssignButton" class="btn btn-success">Confirmar e Atribuir</button>
+                    <button id="cancelAssignButton" class="btn btn-secondary">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="cancelConfirmationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-white p-6 rounded-lg shadow-lg w-96 max-w-full">
+                <h3 class="text-lg font-semibold mb-4">Confirmar Recusa</h3>
+                <p class="mb-4">Tem certeza que deseja recusar esta solicitação de entrega?</p>
+                <div class="flex justify-end space-x-4">
+                    <button id="confirmCancelButton" class="btn btn-danger">Sim, Recusar</button>
+                    <button id="denyCancelButton" class="btn btn-secondary">Não</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-gray-200 text-center p-4 text-gray-600 w-full mt-8">
+        &copy; 2025 Flash Express. Todos os direitos reservados.
+    </footer>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, addDoc, getDocs, orderBy, Timestamp, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // >>>>> SUBSTITUA COM AS SUAS INFORMAÇÕES REAIS DO PROJETO FIREBASE <<<<<
+        const firebaseConfig = {
+        apiKey: "AIzaSyBt1FCYCv0Ep9TMk_XfXcGXwHW3JNX7XJA",
+        authDomain: "flash-express-fbf46.firebaseapp.com",
+        projectId: "flash-express-fbf46",
+        storageBucket: "flash-express-fbf46.firebasestorage.app",
+        messagingSenderId: "959043432256",
+        appId: "1:959043432256:web:478182be28c48ecc2cd4a5"
+        };
+        // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const usersCollectionRef = collection(db, "users");
+        const deliveryRequestsCollectionRef = collection(db, "deliveryRequests");
+
+        let currentDeliveryToAssign = null;
+        let currentDeliveryToCancel = null;
+
+        const showMessageBox = (message, type = 'info') => {
+            const box = document.getElementById('messageBox');
+            box.textContent = message;
+            box.className = `message-box ${type}`;
+            box.style.display = 'block';
+            setTimeout(() => { box.style.display = 'none'; }, 4000);
+        };
+        const showLoading = () => document.getElementById('loadingOverlay').style.display = 'flex';
+        const hideLoading = () => document.getElementById('loadingOverlay').style.display = 'none';
+        
+        const formatCurrency = (value) => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
+        const formatDate = (timestamp) => timestamp ? new Date(timestamp.toDate()).toLocaleDateString('pt-BR') : 'N/A';
+        const formatTime = (timestamp) => timestamp ? new Date(timestamp.toDate()).toLocaleTimeString('pt-BR') : 'N/A';
+        const formatDateTime = (timestamp) => timestamp ? `${formatDate(timestamp)} às ${formatTime(timestamp)}` : 'N/A';
+
+        const tabs = document.querySelectorAll('.tab-button');
+        const contents = document.querySelectorAll('.tab-content');
+
+        const switchTab = (tabName) => {
+            tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.tab === tabName));
+            contents.forEach(content => content.classList.toggle('active', content.id === `content${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`));
+            
+            if (tabName === 'entregas') listenForDeliveryStatus();
+            if (tabName === 'solicitarEntrega') populateEmployeeSelect();
+            if (tabName === 'cadastroUsuarios') loadAllUsers();
+            if (tabName === 'entregasHoje') listenForCompletedToday();
+            if (tabName === 'historico') populateClientSearch();
+        };
+
+        tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
+
+        async function checkAuthStatus() {
+            onAuthStateChanged(auth, async (user) => {
+                const onAdminDashboard = window.location.pathname.includes('adminDashboard.html');
+                if (onAdminDashboard) {
+                    if (user) {
+                        const userDoc = await getDoc(doc(db, "users", user.uid));
+                        if (userDoc.exists() && userDoc.data().role === 'admin') {
+                            switchTab('entregas');
+                            hideLoading();
+                        } else { await signOut(auth); }
+                    } else { window.location.href = 'index.html'; }
+                } else {
+                    if (user) {
+                         const userDoc = await getDoc(doc(db, "users", user.uid));
+                         if (userDoc.exists() && userDoc.data().role === 'admin') {
+                            window.location.href = 'adminDashboard.html';
+                         } else { hideLoading(); }
+                    } else { hideLoading(); }
+                }
+            });
+        }
+
+        document.getElementById('logoutButton').addEventListener('click', async () => {
+            await signOut(auth);
+            showMessageBox('Logout realizado com sucesso.', 'success');
+            window.location.href = 'index.html';
+        });
+
+        function listenForDeliveryStatus() {
+            const activeStatuses = {
+                'pending': 'pendingClientApprovalList',
+                'pending_employee_approval': 'pendingEmployeeApprovalList',
+                'accepted_awaiting_collection': 'awaitingCollectionList',
+                'in_route': 'inRouteList'
+            };
+
+            Object.entries(activeStatuses).forEach(([status, elementId]) => {
+                const q = query(deliveryRequestsCollectionRef, where('status', '==', status), orderBy('requestedAt', 'desc'));
+                onSnapshot(q, snapshot => renderStatusDeliveries(snapshot, elementId, status),
+                  error => console.error(`Erro ao buscar status ${status}:`, error));
+            });
+
+            const completedQuery = query(deliveryRequestsCollectionRef, where('status', '==', 'completed'), orderBy('completedAt', 'desc'), limit(5));
+            onSnapshot(completedQuery, snapshot => renderStatusDeliveries(snapshot, 'completedList', 'completed'),
+              error => console.error('Erro ao buscar pedidos concluídos:', error));
+        }
+
+        async function renderStatusDeliveries(snapshot, elementId, status) {
+            const listElement = document.getElementById(elementId);
+            listElement.innerHTML = '';
+            if (snapshot.empty) {
+                const message = {
+                    'pending': 'Nenhum novo pedido de cliente.',
+                    'pending_employee_approval': 'Nenhum pedido aguardando aceite do funcionário.',
+                    'accepted_awaiting_collection': 'Nenhum pedido aguardando coleta.',
+                    'in_route': 'Nenhum pedido em rota.',
+                    'completed': 'Nenhum pedido concluído recentemente.'
+                }[status] || 'Nenhum pedido com este status.';
+                listElement.innerHTML = `<p class="text-gray-500">${message}</p>`;
+                return;
+            }
+
+            const statusTextMap = {
+                'pending': 'Nova Solicitação de Cliente',
+                'pending_employee_approval': 'Aguardando Aceite do Funcionário',
+                'accepted_awaiting_collection': 'Aguardando Coleta',
+                'in_route': 'Em Rota de Entrega',
+                'completed': 'Concluído'
+            };
+
+            for (const d of snapshot.docs) {
+                const delivery = d.data();
+                const deliveryId = d.id;
+                const deliveryItem = document.createElement('div');
+                deliveryItem.className = 'bg-gray-50 p-4 rounded-md border border-gray-200';
+
+                const actionButtons = status === 'pending' ? `
+                    <div class="mt-4 flex space-x-2">
+                        <button data-id="${deliveryId}" class="approve-btn btn btn-success text-sm py-1 px-3">Aprovar</button>
+                        <button data-id="${deliveryId}" class="reject-btn btn btn-danger text-sm py-1 px-3">Recusar</button>
+                    </div>` : '';
+
+                const address = delivery.address ? `${delivery.address}, ${delivery.neighborhood}` : `${delivery.deliveryStreet}, ${delivery.deliveryNumber}`;
+
+                deliveryItem.innerHTML = `
+                    <p class="font-semibold text-lg">Pedido #${deliveryId.substring(0, 6)}</p>
+                    <p><strong>Cliente:</strong> ${delivery.clientName || 'N/A'}</p>
+                    <p><strong>Endereço de Entrega:</strong> ${address}</p>
+                    ${delivery.collectStoreName ? `<p><strong>Coleta:</strong> ${delivery.collectStoreName} - ${delivery.collectStreet}, ${delivery.collectNumber}</p>`: ''}
+                    <p><strong>Status:</strong> ${statusTextMap[status]}</p>
+                    <p><strong>Valor:</strong> ${delivery.value > 0 ? formatCurrency(delivery.value) : 'A definir'}</p>
+                    ${delivery.observations ? `<p class="text-sm text-blue-800 bg-blue-100 p-2 rounded-md mt-2"><strong>Obs:</strong> ${delivery.observations}</p>` : ''}
+                    <p class="text-sm text-gray-500">Data: ${delivery.completedAt ? formatDateTime(delivery.completedAt) : formatDateTime(delivery.requestedAt)}</p>
+                    ${actionButtons}
+                `;
+                listElement.appendChild(deliveryItem);
+            }
+
+            if (status === 'pending') {
+                document.querySelectorAll('.approve-btn').forEach(btn => btn.addEventListener('click', (e) => openAssignModal(e.target.dataset.id)));
+                document.querySelectorAll('.reject-btn').forEach(btn => btn.addEventListener('click', (e) => openCancelModal(e.target.dataset.id)));
+            }
+        }
+        
+        async function populateSelectWithOptions(selectElement, collectionRef, roleFilter, nameField = 'name') {
+            selectElement.innerHTML = `<option value="">Carregando...</option>`;
+            const q = query(collectionRef, where('role', '==', roleFilter), orderBy(nameField));
+            const snapshot = await getDocs(q);
+            selectElement.innerHTML = `<option value="">Selecione um funcionário</option>`;
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                selectElement.innerHTML += `<option value="${doc.id}" data-name="${data[nameField]}">${data[nameField]}</option>`;
+            });
+        }
+
+        function openAssignModal(deliveryId) {
+            currentDeliveryToAssign = deliveryId;
+            populateSelectWithOptions(document.getElementById('employeeSelect'), usersCollectionRef, 'employee');
+            document.getElementById('assignEmployeeModal').classList.remove('hidden');
+        }
+
+        function openCancelModal(deliveryId) {
+            currentDeliveryToCancel = deliveryId;
+            document.getElementById('cancelConfirmationModal').classList.remove('hidden');
+        }
+
+        document.getElementById('confirmAssignButton').addEventListener('click', async () => {
+            const employeeSelect = document.getElementById('employeeSelect');
+            const valueInput = document.getElementById('deliveryValueInput');
+            const selectedEmployeeId = employeeSelect.value;
+            const deliveryValue = parseFloat(valueInput.value);
+
+            if (!selectedEmployeeId || isNaN(deliveryValue) || deliveryValue <= 0) {
+                showMessageBox("Por favor, selecione um funcionário e insira um valor válido.", 'error'); return;
+            }
+            showLoading();
+            try {
+                await updateDoc(doc(deliveryRequestsCollectionRef, currentDeliveryToAssign), {
+                    status: 'pending_employee_approval',
+                    assignedTo: selectedEmployeeId,
+                    employeeName: employeeSelect.options[employeeSelect.selectedIndex].dataset.name,
+                    value: deliveryValue,
+                    assignedAt: Timestamp.now()
+                });
+                showMessageBox('Entrega aprovada e atribuída!', 'success');
+                document.getElementById('assignEmployeeModal').classList.add('hidden');
+                valueInput.value = '';
+            } catch (error) { showMessageBox('Erro: ' + error.message, 'error'); } 
+            finally { hideLoading(); }
+        });
+
+         document.getElementById('cancelAssignButton').addEventListener('click', () => {
+            document.getElementById('assignEmployeeModal').classList.add('hidden');
+        });
+
+        document.getElementById('confirmCancelButton').addEventListener('click', async () => {
+            showLoading();
+            try {
+                 await updateDoc(doc(deliveryRequestsCollectionRef, currentDeliveryToCancel), {
+                    status: 'canceled', canceledAt: Timestamp.now()
+                });
+                showMessageBox('Solicitação recusada com sucesso.', 'success');
+                document.getElementById('cancelConfirmationModal').classList.add('hidden');
+            } catch (error) { showMessageBox('Erro: ' + error.message, 'error'); }
+            finally { hideLoading(); }
+        });
+
+         document.getElementById('denyCancelButton').addEventListener('click', () => {
+            document.getElementById('cancelConfirmationModal').classList.add('hidden');
+        });
+
+        function populateEmployeeSelect() {
+            populateSelectWithOptions(document.getElementById('deliveryEmployee'), usersCollectionRef, 'employee');
+        }
+        
+        document.getElementById('newDeliveryForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); showLoading();
+            const employeeSelect = document.getElementById('deliveryEmployee');
+            const deliveryData = {
+                clientName: document.getElementById('deliveryClientName').value,
+                assignedTo: employeeSelect.value,
+                employeeName: employeeSelect.options[employeeSelect.selectedIndex].dataset.name,
+                collectStoreName: document.getElementById('collectStoreName').value,
+                collectStreet: document.getElementById('collectStreet').value,
+                collectNumber: document.getElementById('collectNumber').value,
+                collectNeighborhood: document.getElementById('collectNeighborhood').value,
+                deliveryStreet: document.getElementById('deliveryStreet').value,
+                deliveryNumber: document.getElementById('deliveryNumber').value,
+                deliveryNeighborhood: document.getElementById('deliveryNeighborhood').value,
+                deliveryCity: document.getElementById('deliveryCity').value,
+                deliveryComplement: document.getElementById('deliveryComplement').value,
+                observations: document.getElementById('deliveryObservations').value,
+                value: parseFloat(document.getElementById('deliveryValue').value),
+                status: 'pending_employee_approval', requestedAt: Timestamp.now(),
+            };
+            try {
+                await addDoc(deliveryRequestsCollectionRef, deliveryData);
+                showMessageBox('Nova entrega solicitada com sucesso!', 'success');
+                e.target.reset(); populateEmployeeSelect();
+            } catch (error) { showMessageBox('Erro: ' + error.message, 'error'); } 
+            finally { hideLoading(); }
+        });
+
+        const userRoleSelect = document.getElementById('userRole');
+        const clientAddressFields = document.getElementById('clientAddressFields');
+        userRoleSelect.addEventListener('change', () => {
+            clientAddressFields.classList.toggle('hidden', userRoleSelect.value !== 'client');
+        });
+
+        document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); showLoading();
+            const email = document.getElementById('userEmail').value;
+            const password = document.getElementById('userPassword').value;
+            const name = document.getElementById('userName').value;
+            const role = document.getElementById('userRole').value;
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const userData = { name, email, role, createdAt: Timestamp.now() };
+                if (role === 'client') {
+                    userData.address = {
+                        street: document.getElementById('clientStreet').value,
+                        number: document.getElementById('clientNumberField').value,
+                        neighborhood: document.getElementById('clientNeighborhood').value,
+                        city: document.getElementById('clientCity').value,
+                    };
+                }
+                await setDoc(doc(db, "users", userCredential.user.uid), userData);
+                showMessageBox(`Usuário ${name} (${role}) adicionado com sucesso!`, 'success');
+                e.target.reset(); clientAddressFields.classList.add('hidden'); loadAllUsers();
+            } catch (error) { showMessageBox('Erro: ' + error.message, 'error'); } 
+            finally { hideLoading(); }
+        });
+
+        async function loadAllUsers() {
+            const usersListDiv = document.getElementById('usersList');
+            usersListDiv.innerHTML = '<p class="text-gray-500">Carregando...</p>';
+            const snapshot = await getDocs(query(usersCollectionRef, orderBy("name")));
+            usersListDiv.innerHTML = '';
+            if (snapshot.empty) {
+                usersListDiv.innerHTML = '<p class="text-gray-500">Nenhum usuário.</p>'; return;
+            }
+            snapshot.forEach(d => {
+                const user = d.data();
+                const address = user.address ? `${user.address.street}, ${user.address.number}` : 'Endereço não informado';
+                usersListDiv.innerHTML += `
+                    <div class="bg-gray-50 p-3 rounded-md border flex justify-between items-center">
+                        <div>
+                            <p class="font-semibold">${user.name} (${user.email})</p>
+                            <p class="text-sm text-gray-600">Função: ${user.role}</p>
+                            ${user.role === 'client' ? `<p class="text-xs text-gray-500">${address}</p>` : ''}
+                        </div>
+                        <button onclick="window.deleteUser('${d.id}')" class="btn-danger text-white text-sm py-1 px-3 rounded">Excluir</button>
+                    </div>`;
+            });
+        }
+        window.deleteUser = async (userId) => {
+            if (confirm("Atenção: Isso remove o usuário do banco de dados, mas NÃO da autenticação do Firebase. Deseja continuar?")) {
+                showLoading();
+                try {
+                    await deleteDoc(doc(db, "users", userId));
+                    showMessageBox("Usuário removido.", 'success'); loadAllUsers();
+                } catch(e) { showMessageBox('Erro: ' + e.message, 'error'); }
+                finally { hideLoading(); }
+            }
+        };
+
+        function listenForCompletedToday() {
+            const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+            const endOfToday = new Date(); endOfToday.setHours(23, 59, 59, 999);
+            const q = query(deliveryRequestsCollectionRef,
+                where('status', '==', 'completed'),
+                where('completedAt', '>=', Timestamp.fromDate(startOfToday)),
+                where('completedAt', '<=', Timestamp.fromDate(endOfToday)),
+                orderBy('completedAt', 'desc')
+            );
+            onSnapshot(q, snapshot => {
+                const listElement = document.getElementById('completedTodayList');
+                listElement.innerHTML = '';
+                if (snapshot.empty) {
+                    listElement.innerHTML = `<p class="text-gray-500">Nenhuma entrega concluída hoje.</p>`; return;
+                }
+                snapshot.forEach(d => {
+                    const delivery = d.data();
+                    listElement.innerHTML += `
+                        <div class="bg-gray-50 p-4 rounded-md border grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
+                            <div><strong>Cliente:</strong> ${delivery.clientName}</div>
+                            <div><strong>Funcionário:</strong> ${delivery.employeeName}</div>
+                            <div><strong>Horário:</strong> ${formatTime(delivery.completedAt)}</div>
+                            <div><strong>Data:</strong> ${formatDate(delivery.completedAt)}</div>
+                        </div>`;
+                });
+            });
+        }
+
+        let historicoCache = [];
+        async function populateClientSearch() {
+            populateSelectWithOptions(document.getElementById('clientSearch'), usersCollectionRef, 'client');
+        }
+        document.getElementById('filterHistoryButton').addEventListener('click', async () => {
+            showLoading();
+            const clientId = document.getElementById('clientSearch').value;
+            const startDateStr = document.getElementById('startDate').value;
+            const endDateStr = document.getElementById('endDate').value;
+            let conditions = [where('status', 'in', ['completed', 'canceled'])];
+            if (clientId) conditions.push(where('clientId', '==', clientId));
+            if (startDateStr) {
+                const start = new Date(startDateStr); start.setHours(0,0,0,0);
+                conditions.push(where('completedAt', '>=', Timestamp.fromDate(start)));
+            }
+            if (endDateStr) {
+                const end = new Date(endDateStr); end.setHours(23,59,59,999);
+                conditions.push(where('completedAt', '<=', Timestamp.fromDate(end)));
+            }
+            conditions.push(orderBy('completedAt', 'desc')); 
+            try {
+                const q = query(deliveryRequestsCollectionRef, ...conditions);
+                const snapshot = await getDocs(q);
+                const listElement = document.getElementById('historicoDeliveriesList');
+                const totalValueSpan = document.getElementById('totalDeliveryValue');
+                listElement.innerHTML = '';
+                let totalValue = 0; historicoCache = [];
+                if (snapshot.empty) {
+                    listElement.innerHTML = '<p class="text-gray-500">Nenhum resultado encontrado.</p>';
+                } else {
+                    snapshot.forEach(d => {
+                        const delivery = d.data(); historicoCache.push(delivery);
+                        const isCompleted = delivery.status === 'completed';
+                        const value = isCompleted ? delivery.value : 0; totalValue += value;
+                        listElement.innerHTML += `
+                            <div class="bg-gray-50 p-4 rounded-md border ${isCompleted ? 'border-green-200' : 'border-red-200'}">
+                                <p><strong>Endereço:</strong> ${delivery.deliveryStreet}, ${delivery.deliveryNumber} - ${delivery.deliveryNeighborhood}</p>
+                                <p><strong>Funcionário:</strong> ${delivery.employeeName || 'N/A'}</p>
+                                <p><strong>Status:</strong> <span class="${isCompleted ? 'text-green-600' : 'text-red-600 font-semibold'}">${isCompleted ? 'Concluída' : 'Cancelada'}</span></p>
+                                <p><strong>Valor:</strong> ${formatCurrency(value)}</p>
+                                <p><strong>Data/Hora:</strong> ${formatDateTime(delivery.completedAt || delivery.canceledAt)}</p>
+                            </div>`;
+                    });
+                }
+                totalValueSpan.textContent = formatCurrency(totalValue);
+            } catch (error) {
+                console.error("Erro ao filtrar histórico:", error);
+                showMessageBox("Erro ao filtrar: " + error.message, 'error');
+                document.getElementById('historicoDeliveriesList').innerHTML = '<p class="text-red-500">Ocorreu um erro. Verifique se o índice do Firestore foi criado.</p>';
+            } finally { hideLoading(); }
+        });
+
+        function generateExportContent(isForWhatsApp) {
+            if (historicoCache.length === 0) {
+                showMessageBox("Nenhum dado para exportar. Filtre o histórico primeiro.", 'info'); return null;
+            }
+            const clientName = document.getElementById('clientSearch').options[document.getElementById('clientSearch').selectedIndex].text;
+            const title = `Relatório de Entregas - ${clientName !== 'Selecione um funcionário' ? clientName : 'Geral'}`;
+            let content = isForWhatsApp ? `*${title}*\n\n` : `<h1 style="text-align: center; font-size: 24px; margin-bottom: 20px;">${title}</h1>`;
+            let totalValue = 0;
+            historicoCache.forEach(d => {
+                const value = d.status === 'completed' ? (d.value || 0) : 0;
+                totalValue += value;
+                const address = `${d.deliveryStreet}, ${d.deliveryNumber}`;
+                const employee = d.employeeName || 'N/A';
+                const dateTime = formatDateTime(d.completedAt || d.canceledAt);
+                if (isForWhatsApp) {
+                    content += `*Endereço:* ${address}\n  - Funcionário: ${employee}\n  - Valor: ${formatCurrency(value)}\n  - Data: ${dateTime}\n\n`;
+                } else {
+                    content += `<div style="border-bottom: 1px solid #eee; padding: 10px 0; font-family: sans-serif;"><p><strong>Endereço:</strong> ${address}</p><p><strong>Funcionário:</strong> ${employee}</p><p><strong>Valor:</strong> ${formatCurrency(value)}</p><p><strong>Data:</strong> ${dateTime}</p></div>`;
+                }
+            });
+            const totalString = `Valor Total: ${formatCurrency(totalValue)}`;
+            content += isForWhatsApp ? `*${totalString}*` : `<p style="text-align: right; font-size: 18px; font-weight: bold; margin-top: 20px;">${totalString}</p>`;
+            return content;
+        }
+
+        document.getElementById('exportPdfButton').addEventListener('click', () => {
+            const contentHTML = generateExportContent(false);
+            if (!contentHTML) return;
+            const element = document.createElement('div');
+            element.innerHTML = contentHTML;
+            html2pdf().from(element).set({ margin: 10, filename: `relatorio_entregas.pdf`, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).save();
+        });
+
+        document.getElementById('exportWhatsappButton').addEventListener('click', () => {
+            const message = generateExportContent(true);
+            if (!message) return;
+            window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+        });
+
+        // --- Inicialização ---
+        showLoading();
+        checkAuthStatus();
+
+    </script>
+</body>
+</html>
